@@ -194,7 +194,6 @@ function! s:PlaceMarkers(results)  " {{{
         if l:index >= (s:flake8_max_markers+l:index0)
             break
         endif
-        caddexpr result.text
         let l:type = strpart(result.text, 1, 1)
         if has_key(s:markerdata, l:type) && s:markerdata[l:type].marker != ''
             " file markers
