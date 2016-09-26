@@ -136,6 +136,8 @@ function! s:HandleFlake8Complete(job, exitstatus)
     else
         echon "Flake8 found issues"
     endif
+    
+    set errorformat-="%f:%l:%c:\ %t%n\ %m"
 endfunction
 
 
@@ -170,7 +172,6 @@ function! s:Flake8()  " {{{
     set errorformat+="%f:%l:%c:\ %t%n\ %m"
     let s:job = job_start([s:flake8_cmd, expand('%')], {"out_cb": function("s:HandleFlake8Response"),
                                         \ "exit_cb": function("s:HandleFlake8Complete")})
-    set errorformat-="%f:%l:%c:\ %t%n\ %m"
 endfunction  " }}}
 
 "" markers
