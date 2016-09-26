@@ -105,53 +105,17 @@ endfunction  " }}}
 
 "" do flake8
 
-function! s:Flake8()  " {{{
-    " read config
-    call s:Setup()
+function! s:HandleFlake8Response(channel, msg)
+    caddexpr a:msg
+endfunction
 
-    if !executable(s:flake8_cmd)
-        echoerr "File " . s:flake8_cmd . " not found. Please install it first."
-        return
-    endif
-
-    " clear old
-    call s:UnplaceMarkers()
-    let s:matchids = []
-    let s:signids  = []
-
-    " store old grep settings (to restore later)
-    let l:old_gfm=&grepformat
-    let l:old_gp=&grepprg
-    let l:old_shellpipe=&shellpipe
-
-    " write any changes before continuing
-    if &readonly == 0
-        update
-    endif
-
-    set lazyredraw   " delay redrawing
-    cclose           " close any existing cwindows
-
-    " set shellpipe to > instead of tee (suppressing output)
-    set shellpipe=>
-
-    " perform the grep itself
-    let &grepformat="%f:%l:%c: %m\,%f:%l: %m"
-    let &grepprg=s:flake8_cmd
-    silent! grep! "%"
-
-    " restore grep settings
-    let &grepformat=l:old_gfm
-    let &grepprg=l:old_gp
-    let &shellpipe=l:old_shellpipe
-
-    " process results
+function! s:HandleFlake8Complete(job, exitstatus)
     let l:results=getqflist()
     let l:has_results=results != []
     if l:has_results
         " markers
         if !s:flake8_show_in_gutter == 0 || !s:flake8_show_in_file == 0
-            call s:PlaceMarkers(l:results)
+            call s:PlaceMarkers(results)
         endif
         " quickfix
         if !s:flake8_show_quickfix == 0
@@ -172,6 +136,41 @@ function! s:Flake8()  " {{{
     else
         echon "Flake8 found issues"
     endif
+endfunction
+
+
+function! s:Flake8()  " {{{
+    " read config
+    call s:Setup()
+
+    if !executable(s:flake8_cmd)
+        echoerr "File " . s:flake8_cmd . " not found. Please install it first."
+        return
+    endif
+
+    " clear old
+    call s:UnplaceMarkers()
+    let s:matchids = []
+    let s:signids  = []
+
+
+    " write any changes before continuing
+    if &readonly == 0
+        update
+    endif
+
+    set lazyredraw   " delay redrawing
+    cclose           " close any existing cwindows
+    cexpr []
+
+    " set shellpipe to > instead of tee (suppressing output)
+    "set shellpipe=>
+
+
+    set errorformat+="%f:%l:%c:\ %t%n\ %m"
+    let s:job = job_start([s:flake8_cmd, expand('%')], {"out_cb": function("s:HandleFlake8Response"),
+                                        \ "exit_cb": function("s:HandleFlake8Complete")})
+    set errorformat-="%f:%l:%c:\ %t%n\ %m"
 endfunction  " }}}
 
 "" markers
@@ -194,7 +193,8 @@ function! s:PlaceMarkers(results)  " {{{
         if l:index >= (s:flake8_max_markers+l:index0)
             break
         endif
-        let l:type = strpart(result.text, 0, 1)
+        caddexpr result.text
+        let l:type = strpart(result.text, 1, 1)
         if has_key(s:markerdata, l:type) && s:markerdata[l:type].marker != ''
             " file markers
             if !s:flake8_show_in_file == 0
